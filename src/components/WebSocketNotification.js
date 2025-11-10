@@ -74,8 +74,10 @@ const WebSocketNotification = () => {
     }
 
     console.log('🔌 Attempting WebSocket connection...');
-    const wsUrl = `ws://localhost:8080/ws?token=${encodeURIComponent(token)}`;
+    const WS_BASE = 'wss://leavemaster-backend-production.up.railway.app/ws';
+    const wsUrl = `${WS_BASE}?token=${encodeURIComponent(token)}`;
     const websocket = new WebSocket(wsUrl);
+
 
     websocket.onopen = () => {
       console.log('✅ WebSocket Connected Successfully!');
