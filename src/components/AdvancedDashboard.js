@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,7 +13,21 @@ import {
   Legend,
 } from 'chart.js';
 import { Bar, Line, Doughnut } from 'react-chartjs-2';
-import { leaveAPI } from '../services/api';
+import { 
+  Download, 
+  RefreshCw, 
+  Users, 
+  Clock, 
+  CheckCircle, 
+  TrendingUp,
+  BarChart3,
+  Building,
+  Calendar,
+  Activity,
+  AlertCircle,
+  Zap,
+  FileText
+} from 'lucide-react';
 import { reportsAPI } from '../services/api';
 
 // Register ChartJS components
@@ -35,21 +50,20 @@ const AdvancedDashboard = ({ user }) => {
   const [leaveTypeDistribution, setLeaveTypeDistribution] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
-    
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(loadDashboardData, 30000);
-    return () => clearInterval(interval);
   }, []);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
+      setError(null);
+      setRefreshing(true);
       
-      // Gunakan reportsAPI yang benar
       const [
         statsRes,
         deptRes,
@@ -64,21 +78,24 @@ const AdvancedDashboard = ({ user }) => {
         reportsAPI.getRecentActivities()
       ]);
 
-      setStats(statsRes.data);
-      setDepartmentStats(deptRes.data);
-      setMonthlyTrends(trendsRes.data);
-      setLeaveTypeDistribution(distributionRes.data);
-      setRecentActivities(activitiesRes.data);
+      setStats(statsRes.data || {});
+      setDepartmentStats(deptRes.data || []);
+      setMonthlyTrends(trendsRes.data || []);
+      setLeaveTypeDistribution(distributionRes.data || []);
+      setRecentActivities(activitiesRes.data || []);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      setError('Failed to load dashboard data. Please try again.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   const exportToPDF = () => {
-    // Simple PDF export implementation
     const printContent = document.getElementById('dashboard-content');
+    if (!printContent) return;
+    
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
       <html>
@@ -105,421 +122,477 @@ const AdvancedDashboard = ({ user }) => {
     printWindow.print();
   };
 
-  // Chart data configurations
+  // Chart configurations
   const monthlyTrendsChart = {
-    labels: monthlyTrends.map(t => t.month),
+    labels: monthlyTrends.length > 0 ? monthlyTrends.map(t => t.month) : ['No Data'],
     datasets: [
       {
         label: 'Approved',
-        data: monthlyTrends.map(t => t.approved),
-        borderColor: '#2ecc71',
-        backgroundColor: 'rgba(46, 204, 113, 0.1)',
+        data: monthlyTrends.length > 0 ? monthlyTrends.map(t => t.approved) : [0],
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
         tension: 0.4,
+        borderWidth: 3,
       },
       {
         label: 'Pending',
-        data: monthlyTrends.map(t => t.pending),
-        borderColor: '#f39c12',
-        backgroundColor: 'rgba(243, 156, 18, 0.1)',
+        data: monthlyTrends.length > 0 ? monthlyTrends.map(t => t.pending) : [0],
+        borderColor: '#f59e0b',
+        backgroundColor: 'rgba(245, 158, 11, 0.1)',
         tension: 0.4,
+        borderWidth: 3,
       },
       {
         label: 'Rejected',
-        data: monthlyTrends.map(t => t.rejected),
-        borderColor: '#e74c3c',
-        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+        data: monthlyTrends.length > 0 ? monthlyTrends.map(t => t.rejected) : [0],
+        borderColor: '#ef4444',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
         tension: 0.4,
+        borderWidth: 3,
       },
     ],
   };
 
   const departmentChart = {
-    labels: departmentStats.map(d => d.department),
+    labels: departmentStats.length > 0 ? departmentStats.map(d => d.department) : ['No Departments'],
     datasets: [
       {
         label: 'Total Leaves',
-        data: departmentStats.map(d => d.total_leaves),
-        backgroundColor: '#3498db',
+        data: departmentStats.length > 0 ? departmentStats.map(d => d.total_leaves) : [0],
+        backgroundColor: '#3b82f6',
+        borderRadius: 8,
       },
       {
         label: 'Pending',
-        data: departmentStats.map(d => d.pending_count),
-        backgroundColor: '#f39c12',
+        data: departmentStats.length > 0 ? departmentStats.map(d => d.pending_count) : [0],
+        backgroundColor: '#f59e0b',
+        borderRadius: 8,
       },
     ],
   };
 
   const leaveTypeChart = {
-    labels: leaveTypeDistribution.map(d => d.type),
+    labels: leaveTypeDistribution.length > 0 ? leaveTypeDistribution.map(d => d.type) : ['No Data'],
     datasets: [
       {
-        data: leaveTypeDistribution.map(d => d.count),
-        backgroundColor: leaveTypeDistribution.map(d => d.color),
-        borderWidth: 2,
-        borderColor: '#fff',
+        data: leaveTypeDistribution.length > 0 ? leaveTypeDistribution.map(d => d.count) : [1],
+        backgroundColor: leaveTypeDistribution.length > 0 
+          ? ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+          : ['#6b7280'],
+        borderWidth: 3,
+        borderColor: '#ffffff',
       },
     ],
   };
 
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: {
+          usePointStyle: true,
+          padding: 20,
+          font: {
+            size: 12,
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false,
+        },
+      },
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(0, 0, 0, 0.05)',
+        },
+      },
+    },
+  };
+
+  // Loading State
   if (loading) {
     return (
-      <div style={{ 
-        background: 'white', 
-        padding: '40px', 
-        borderRadius: '10px',
-        textAlign: 'center'
-      }}>
-        <h3>📊 Loading Advanced Dashboard...</h3>
-        <p>Please wait while we load your analytics data</p>
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8"
+      >
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h2>
+            <p className="text-gray-600 mt-1">Real-time insights and analytics for leave management</p>
+          </div>
+          <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-300 border-t-gray-600"></div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="animate-pulse bg-gray-100 rounded-xl p-6">
+              <div className="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
+              <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    );
+  }
+
+  // Error State
+  if (error) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center"
+      >
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <AlertCircle className="w-8 h-8 text-red-600" />
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">Error Loading Dashboard</h3>
+        <p className="text-gray-600 mb-6">{error}</p>
+        <button
+          onClick={loadDashboardData}
+          className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+        >
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Try Again
+        </button>
+      </motion.div>
     );
   }
 
   return (
-    <div style={{ background: '#f8f9fa', minHeight: '100vh', padding: '20px' }}>
-      <div id="dashboard-content">
-        {/* Header */}
-        <div style={{ 
-          background: 'white', 
-          padding: '20px', 
-          borderRadius: '10px',
-          marginBottom: '20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <div>
-            <h1 style={{ margin: 0, color: '#2c3e50' }}>📊 Analytics Dashboard</h1>
-            <p style={{ margin: 0, color: '#7f8c8d' }}>
-              Real-time insights and analytics for leave management
-            </p>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-6"
+    >
+      {/* Header */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+          <div className="mb-4 lg:mb-0">
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                <BarChart3 className="w-5 h-5 text-blue-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h2>
+            </div>
+            <p className="text-gray-600">Real-time insights and analytics for leave management</p>
           </div>
-          <button
-            onClick={exportToPDF}
-            style={{
-              background: '#27ae60',
-              color: 'white',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-          >
-            📥 Export Report
-          </button>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div style={{ 
-          background: 'white', 
-          padding: '10px', 
-          borderRadius: '10px',
-          marginBottom: '20px'
-        }}>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            {['overview', 'departments', 'trends', 'activities'].map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                style={{
-                  padding: '10px 20px',
-                  background: activeTab === tab ? '#3498db' : '#ecf0f1',
-                  color: activeTab === tab ? 'white' : '#2c3e50',
-                  border: 'none',
-                  borderRadius: '5px',
-                  cursor: 'pointer',
-                  textTransform: 'capitalize'
-                }}
-              >
-                {tab === 'overview' ? '📈 Overview' :
-                 tab === 'departments' ? '👥 Departments' :
-                 tab === 'trends' ? '📅 Trends' : '🔄 Activities'}
-              </button>
-            ))}
+          
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={loadDashboardData}
+              disabled={refreshing}
+              className="inline-flex items-center px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors duration-200"
+            >
+              {refreshing ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-400 border-t-transparent mr-2"></div>
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Refresh
+            </button>
+            <button
+              onClick={exportToPDF}
+              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export Report
+            </button>
           </div>
         </div>
-
-        {/* Overview Tab */}
-        {activeTab === 'overview' && (
-          <div>
-            {/* Statistics Grid */}
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-              gap: '20px',
-              marginBottom: '30px'
-            }}>
-              <StatCard 
-                title="Total Employees" 
-                value={stats.total_employees} 
-                icon="👥"
-                color="#3498db"
-                change="+2%"
-              />
-              <StatCard 
-                title="Pending Requests" 
-                value={stats.pending_requests} 
-                icon="⏳"
-                color="#f39c12"
-                change="+5%"
-              />
-              <StatCard 
-                title="Approved This Month" 
-                value={stats.approved_this_month} 
-                icon="✅"
-                color="#2ecc71"
-                change="+12%"
-              />
-              <StatCard 
-                title="Leave Utilization" 
-                value={`${stats.leave_utilization?.toFixed(1) || 0}%`} 
-                icon="📈"
-                color="#9b59b6"
-                change="-3%"
-              />
-              <StatCard 
-                title="Avg Processing Time" 
-                value={`${stats.avg_processing_time?.toFixed(1) || 0}h`} 
-                icon="⚡"
-                color="#e74c3c"
-                change="-15%"
-              />
-              <StatCard 
-                title="Total Leaves This Year" 
-                value={stats.total_leaves_this_year} 
-                icon="📅"
-                color="#1abc9c"
-                change="+8%"
-              />
-            </div>
-
-            {/* Charts Row */}
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-              gap: '20px',
-              marginBottom: '30px'
-            }}>
-              {/* Monthly Trends Chart */}
-              <div style={{ 
-                background: 'white', 
-                padding: '20px', 
-                borderRadius: '10px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-              }}>
-                <h3>Monthly Leave Trends</h3>
-                <div style={{ height: '300px' }}>
-                  <Line 
-                    data={monthlyTrendsChart}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: { position: 'top' },
-                      },
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Leave Type Distribution */}
-              <div style={{ 
-                background: 'white', 
-                padding: '20px', 
-                borderRadius: '10px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-              }}>
-                <h3>Leave Type Distribution</h3>
-                <div style={{ height: '300px' }}>
-                  <Doughnut 
-                    data={leaveTypeChart}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: { position: 'bottom' },
-                      },
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Departments Tab */}
-        {activeTab === 'departments' && (
-          <div>
-            <div style={{ 
-              background: 'white', 
-              padding: '20px', 
-              borderRadius: '10px',
-              marginBottom: '20px'
-            }}>
-              <h3>Department Performance</h3>
-              <div style={{ height: '400px' }}>
-                <Bar 
-                  data={departmentChart}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                      legend: { position: 'top' },
-                    },
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Department Table */}
-            <div style={{ 
-              background: 'white', 
-              padding: '20px', 
-              borderRadius: '10px'
-            }}>
-              <h3>Department Statistics</h3>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: '#f8f9fa' }}>
-                    <th style={{ padding: '12px', border: '1px solid #ddd' }}>Department</th>
-                    <th style={{ padding: '12px', border: '1px solid #ddd' }}>Employees</th>
-                    <th style={{ padding: '12px', border: '1px solid #ddd' }}>Total Leaves</th>
-                    <th style={{ padding: '12px', border: '1px solid #ddd' }}>Avg Days</th>
-                    <th style={{ padding: '12px', border: '1px solid #ddd' }}>Utilization</th>
-                    <th style={{ padding: '12px', border: '1px solid #ddd' }}>Pending</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {departmentStats.map((dept, index) => (
-                    <tr key={index}>
-                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>{dept.department}</td>
-                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>{dept.total_employees}</td>
-                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>{dept.total_leaves}</td>
-                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>{dept.avg_leave_days?.toFixed(1)}</td>
-                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>
-                        {dept.utilization_rate?.toFixed(1)}%
-                      </td>
-                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>
-                        <span style={{ 
-                          background: dept.pending_count > 0 ? '#fff3cd' : '#d1ecf1',
-                          color: dept.pending_count > 0 ? '#856404' : '#0c5460',
-                          padding: '4px 8px',
-                          borderRadius: '12px',
-                          fontSize: '12px'
-                        }}>
-                          {dept.pending_count} pending
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* Recent Activities */}
-        {activeTab === 'activities' && (
-          <div style={{ 
-            background: 'white', 
-            padding: '20px', 
-            borderRadius: '10px'
-          }}>
-            <h3>Recent Activities</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {recentActivities.map((activity, index) => (
-                <div key={index} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '15px',
-                  padding: '15px',
-                  background: '#f8f9fa',
-                  borderRadius: '8px'
-                }}>
-                  <div style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    background: getStatusColor(activity.status),
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontSize: '16px'
-                  }}>
-                    {getStatusIcon(activity.status)}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 'bold' }}>
-                      {activity.employee_name} - {activity.leave_type} Leave
-                    </div>
-                    <div style={{ fontSize: '14px', color: '#666' }}>
-                      {activity.start_date} to {activity.end_date} • 
-                      Status: <span style={{ 
-                        color: getStatusColor(activity.status),
-                        fontWeight: 'bold'
-                      }}>
-                        {activity.status}
-                      </span>
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right', fontSize: '12px', color: '#999' }}>
-                    <div>{new Date(activity.created_at).toLocaleDateString()}</div>
-                    <div>by {activity.action_by}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
-    </div>
+
+      {/* Navigation Tabs */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: 'overview', label: 'Overview', icon: BarChart3 },
+            { id: 'departments', label: 'Departments', icon: Building },
+            { id: 'trends', label: 'Trends', icon: TrendingUp },
+            { id: 'activities', label: 'Activities', icon: Activity }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                activeTab === tab.id
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              <span className="font-medium">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div id="dashboard-content">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+          >
+            {/* Overview Tab */}
+            {activeTab === 'overview' && (
+              <div className="space-y-6">
+                {/* Statistics Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <StatCard 
+                    title="Total Employees" 
+                    value={stats.total_employees || 0} 
+                    icon={Users}
+                    color="blue"
+                    trend={stats.employee_growth}
+                  />
+                  <StatCard 
+                    title="Pending Requests" 
+                    value={stats.pending_requests || 0} 
+                    icon={Clock}
+                    color="amber"
+                    trend={stats.pending_trend}
+                  />
+                  <StatCard 
+                    title="Approved This Month" 
+                    value={stats.approved_this_month || 0} 
+                    icon={CheckCircle}
+                    color="green"
+                    trend={stats.approval_trend}
+                  />
+                  <StatCard 
+                    title="Leave Utilization" 
+                    value={`${(stats.leave_utilization || 0).toFixed(1)}%`} 
+                    icon={TrendingUp}
+                    color="purple"
+                    trend={stats.utilization_trend}
+                  />
+                  <StatCard 
+                    title="Avg Processing Time" 
+                    value={`${(stats.avg_processing_time || 0).toFixed(1)}h`} 
+                    icon={Zap}
+                    color="red"
+                    trend={stats.processing_trend}
+                  />
+                  <StatCard 
+                    title="Total Leaves This Year" 
+                    value={stats.total_leaves_this_year || 0} 
+                    icon={Calendar}
+                    color="emerald"
+                    trend={stats.leaves_trend}
+                  />
+                </div>
+
+                {/* Charts Row */}
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  {/* Monthly Trends Chart */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Leave Trends</h3>
+                    <div className="h-80">
+                      <Line 
+                        data={monthlyTrendsChart}
+                        options={chartOptions}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Leave Type Distribution */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Leave Type Distribution</h3>
+                    <div className="h-80">
+                      <Doughnut 
+                        data={leaveTypeChart}
+                        options={chartOptions}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Departments Tab */}
+            {activeTab === 'departments' && (
+              <div className="space-y-6">
+                {/* Department Chart */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Department Performance</h3>
+                  <div className="h-96">
+                    <Bar 
+                      data={departmentChart}
+                      options={chartOptions}
+                    />
+                  </div>
+                </div>
+
+                {/* Department Table */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Department Statistics</h3>
+                  {departmentStats.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Department</th>
+                            <th className="px-4 py-3 text-center text-sm font-medium text-gray-900">Employees</th>
+                            <th className="px-4 py-3 text-center text-sm font-medium text-gray-900">Total Leaves</th>
+                            <th className="px-4 py-3 text-center text-sm font-medium text-gray-900">Avg Days</th>
+                            <th className="px-4 py-3 text-center text-sm font-medium text-gray-900">Utilization</th>
+                            <th className="px-4 py-3 text-center text-sm font-medium text-gray-900">Pending</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {departmentStats.map((dept, index) => (
+                            <tr key={index} className="hover:bg-gray-50 transition-colors duration-200">
+                              <td className="px-4 py-3 text-sm font-medium text-gray-900">{dept.department}</td>
+                              <td className="px-4 py-3 text-sm text-gray-700 text-center">{dept.total_employees}</td>
+                              <td className="px-4 py-3 text-sm text-gray-700 text-center">{dept.total_leaves}</td>
+                              <td className="px-4 py-3 text-sm text-gray-700 text-center">{(dept.avg_leave_days || 0).toFixed(1)}</td>
+                              <td className="px-4 py-3 text-sm text-center">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  dept.utilization_rate >= 80 
+                                    ? 'bg-red-100 text-red-800'
+                                    : dept.utilization_rate >= 60
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-green-100 text-green-800'
+                                }`}>
+                                  {(dept.utilization_rate || 0).toFixed(1)}%
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  dept.pending_count > 0 
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {dept.pending_count} pending
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                      <p className="text-gray-500">No department data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Activities Tab */}
+            {activeTab === 'activities' && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activities</h3>
+                {recentActivities.length > 0 ? (
+                  <div className="space-y-3">
+                    {recentActivities.map((activity, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="flex items-center space-x-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200"
+                      >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          activity.status === 'approved' ? 'bg-green-100 text-green-600' :
+                          activity.status === 'pending' ? 'bg-amber-100 text-amber-600' :
+                          'bg-red-100 text-red-600'
+                        }`}>
+                          {activity.status === 'approved' ? <CheckCircle className="w-5 h-5" /> :
+                           activity.status === 'pending' ? <Clock className="w-5 h-5" /> :
+                           <AlertCircle className="w-5 h-5" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {activity.employee_name} - {activity.leave_type} Leave
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {activity.start_date} to {activity.end_date} • 
+                            <span className={`ml-1 font-medium ${
+                              activity.status === 'approved' ? 'text-green-600' :
+                              activity.status === 'pending' ? 'text-amber-600' :
+                              'text-red-600'
+                            }`}>
+                              {activity.status}
+                            </span>
+                          </p>
+                        </div>
+                        <div className="text-right text-xs text-gray-500">
+                          <div>{new Date(activity.created_at).toLocaleDateString()}</div>
+                          <div>by {activity.action_by}</div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Activity className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-500">No recent activities</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </motion.div>
   );
 };
 
-// Helper components
-const StatCard = ({ title, value, icon, color, change }) => (
-  <div style={{
-    background: 'white',
-    padding: '25px',
-    borderRadius: '10px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    textAlign: 'center',
-    borderLeft: `4px solid ${color}`
-  }}>
-    <div style={{ fontSize: '32px', marginBottom: '10px' }}>{icon}</div>
-    <div style={{ fontSize: '24px', fontWeight: 'bold', color: color, marginBottom: '5px' }}>
-      {value}
-    </div>
-    <div style={{ fontSize: '14px', color: '#666', marginBottom: '5px' }}>{title}</div>
-    <div style={{ 
-      fontSize: '12px', 
-      color: change.startsWith('+') ? '#2ecc71' : '#e74c3c'
-    }}>
-      {change} from last month
-    </div>
-  </div>
-);
+// StatCard Component
+const StatCard = ({ title, value, icon: Icon, color, trend }) => {
+  const colorClasses = {
+    blue: { bg: 'bg-blue-100', text: 'text-blue-600', value: 'text-blue-700' },
+    amber: { bg: 'bg-amber-100', text: 'text-amber-600', value: 'text-amber-700' },
+    green: { bg: 'bg-green-100', text: 'text-green-600', value: 'text-green-700' },
+    purple: { bg: 'bg-purple-100', text: 'text-purple-600', value: 'text-purple-700' },
+    red: { bg: 'bg-red-100', text: 'text-red-600', value: 'text-red-700' },
+    emerald: { bg: 'bg-emerald-100', text: 'text-emerald-600', value: 'text-emerald-700' }
+  };
 
-const getStatusColor = (status) => {
-  switch (status) {
-    case 'approved': return '#2ecc71';
-    case 'pending': return '#f39c12';
-    case 'rejected': return '#e74c3c';
-    default: return '#95a5a6';
-  }
-};
+  const colors = colorClasses[color] || colorClasses.blue;
 
-const getStatusIcon = (status) => {
-  switch (status) {
-    case 'approved': return '✅';
-    case 'pending': return '⏳';
-    case 'rejected': return '❌';
-    default: return '💡';
-  }
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-200"
+    >
+      <div className="flex items-center justify-between mb-4">
+        <div className={`w-12 h-12 ${colors.bg} rounded-xl flex items-center justify-center`}>
+          <Icon className="w-6 h-6" />
+        </div>
+        {trend && (
+          <span className={`text-sm font-medium ${
+            trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-600' : 'text-gray-600'
+          }`}>
+            {trend > 0 ? '↗' : trend < 0 ? '↘' : '→'} {Math.abs(trend)}%
+          </span>
+        )}
+      </div>
+      
+      <div className={`text-3xl font-bold ${colors.value} mb-1`}>
+        {value}
+      </div>
+      <div className="text-sm text-gray-600 font-medium">
+        {title}
+      </div>
+    </motion.div>
+  );
 };
 
 export default AdvancedDashboard;

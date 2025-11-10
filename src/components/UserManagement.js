@@ -1,4 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Users, 
+  Plus, 
+  Edit, 
+  Trash2, 
+  Search, 
+  Filter,
+  Download,
+  Mail,
+  Building,
+  Shield,
+  UserCheck,
+  UserX,
+  Eye,
+  EyeOff
+} from 'lucide-react';
 import { reportsAPI } from '../services/api';
 
 const UserManagement = ({ user }) => {
@@ -9,6 +26,10 @@ const UserManagement = ({ user }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterDepartment, setFilterDepartment] = useState('');
+  const [filterRole, setFilterRole] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const [newEmployee, setNewEmployee] = useState({
     employee_id: '',
@@ -45,57 +66,50 @@ const UserManagement = ({ user }) => {
     }
   };
 
-const handleCreateEmployee = async (e) => {
-  e.preventDefault();
-  try {
-    const employeeData = {
-      employee_id: newEmployee.employee_id,
-      name: newEmployee.name,
-      email: newEmployee.email,
-      password: newEmployee.password,
-      position: newEmployee.position,
-      department_id: parseInt(newEmployee.department_id),
-      role_id: parseInt(newEmployee.role_id),
-      manager_id: newEmployee.manager_id ? parseInt(newEmployee.manager_id) : null,
-      total_leave_days: parseInt(newEmployee.total_leave_days) || 12
-    };
+  const handleCreateEmployee = async (e) => {
+    e.preventDefault();
+    try {
+      const employeeData = {
+        employee_id: newEmployee.employee_id,
+        name: newEmployee.name,
+        email: newEmployee.email,
+        password: newEmployee.password,
+        position: newEmployee.position,
+        department_id: parseInt(newEmployee.department_id),
+        role_id: parseInt(newEmployee.role_id),
+        manager_id: newEmployee.manager_id ? parseInt(newEmployee.manager_id) : null,
+        total_leave_days: parseInt(newEmployee.total_leave_days) || 12
+      };
 
-    console.log('🆕 Sending employee data:', employeeData);
-
-    // Langsung create employee (skip debug test)
-    console.log('🚀 Creating employee...');
-    const response = await reportsAPI.apiClient.post('/employees', employeeData);
-    console.log('✅ Employee created response:', response.data);
-    
-    // Refresh data
-    await loadUserData();
-    
-    setShowCreateModal(false);
-    setNewEmployee({
-      employee_id: '', name: '', email: '', password: '', position: '',
-      department_id: '', role_id: '', manager_id: '', total_leave_days: 12
-    });
-    
-    alert('Employee created successfully!');
-  } catch (error) {
-    console.error('❌ CREATE EMPLOYEE ERROR:');
-    console.error('   Error object:', error);
-    console.error('   Response data:', error.response?.data);
-    console.error('   Status:', error.response?.status);
-    console.error('   Headers:', error.response?.headers);
-    
-    let errorMessage = 'Error creating employee: ';
-    if (error.response?.data?.error) {
-      errorMessage += error.response.data.error;
-    } else if (error.message) {
-      errorMessage += error.message;
-    } else {
-      errorMessage += 'Unknown error occurred';
+      console.log('🆕 Sending employee data:', employeeData);
+      const response = await reportsAPI.apiClient.post('/employees', employeeData);
+      console.log('✅ Employee created response:', response.data);
+      
+      await loadUserData();
+      
+      setShowCreateModal(false);
+      setNewEmployee({
+        employee_id: '', name: '', email: '', password: '', position: '',
+        department_id: '', role_id: '', manager_id: '', total_leave_days: 12
+      });
+      
+      // Show success message
+      alert('Employee created successfully!');
+    } catch (error) {
+      console.error('❌ CREATE EMPLOYEE ERROR:', error);
+      
+      let errorMessage = 'Error creating employee: ';
+      if (error.response?.data?.error) {
+        errorMessage += error.response.data.error;
+      } else if (error.message) {
+        errorMessage += error.message;
+      } else {
+        errorMessage += 'Unknown error occurred';
+      }
+      
+      alert(errorMessage);
     }
-    
-    alert(errorMessage);
-  }
-};
+  };
 
   const handleUpdateEmployee = async (e) => {
     e.preventDefault();
@@ -122,434 +136,536 @@ const handleCreateEmployee = async (e) => {
     }
   };
 
+  // Filter employees
+  const filteredEmployees = employees.filter(emp => {
+    const matchesSearch = emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         emp.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         emp.employee_id?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDepartment = !filterDepartment || emp.department_id?.toString() === filterDepartment;
+    const matchesRole = !filterRole || emp.role_id?.toString() === filterRole;
+    
+    return matchesSearch && matchesDepartment && matchesRole;
+  });
+
+  // Loading State
   if (loading) {
     return (
-      <div style={{ background: 'white', padding: '40px', textAlign: 'center' }}>
-        <h3>👥 Loading User Management...</h3>
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8"
+      >
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
+            <p className="text-gray-600 mt-1">Manage employees, roles, and departments</p>
+          </div>
+          <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-300 border-t-gray-600"></div>
+        </div>
+        
+        <div className="space-y-4">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="animate-pulse flex items-center space-x-4 p-4 border border-gray-200 rounded-xl">
+              <div className="rounded-full bg-gray-200 h-12 w-12"></div>
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </motion.div>
     );
   }
 
   return (
-    <div style={{ background: '#f8f9fa', minHeight: '100vh', padding: '20px' }}>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-6"
+    >
       {/* Header */}
-      <div style={{ 
-        background: 'white', 
-        padding: '20px', 
-        borderRadius: '10px',
-        marginBottom: '20px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div>
-          <h1 style={{ margin: 0, color: '#2c3e50' }}>👥 User Management</h1>
-          <p style={{ margin: 0, color: '#7f8c8d' }}>
-            Manage employees, roles, and departments
-          </p>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+          <div className="mb-4 lg:mb-0">
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                <Users className="w-5 h-5 text-blue-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
+            </div>
+            <p className="text-gray-600">Manage employees, roles, and departments</p>
+          </div>
+          
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Employee
+          </button>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          style={{
-            background: '#27ae60',
-            color: 'white',
-            border: 'none',
-            padding: '10px 20px',
-            borderRadius: '5px',
-            cursor: 'pointer'
-          }}
-        >
-          ➕ Add Employee
-        </button>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Search */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="w-4 h-4 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search employees..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            />
+          </div>
+
+          {/* Department Filter */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Building className="w-4 h-4 text-gray-400" />
+            </div>
+            <select
+              value={filterDepartment}
+              onChange={(e) => setFilterDepartment(e.target.value)}
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none bg-white"
+            >
+              <option value="">All Departments</option>
+              {departments.map(dept => (
+                <option key={dept.id} value={dept.id}>{dept.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Role Filter */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Shield className="w-4 h-4 text-gray-400" />
+            </div>
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none bg-white"
+            >
+              <option value="">All Roles</option>
+              {roles.map(role => (
+                <option key={role.id} value={role.id}>{role.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Export Button */}
+          <button className="inline-flex items-center justify-center px-4 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </button>
+        </div>
       </div>
 
       {/* Employees Table */}
-      <div style={{ 
-        background: 'white', 
-        padding: '20px', 
-        borderRadius: '10px'
-      }}>
-        <h3>Employees ({employees.length})</h3>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#f8f9fa' }}>
-              <th style={{ padding: '12px', border: '1px solid #ddd' }}>ID</th>
-              <th style={{ padding: '12px', border: '1px solid #ddd' }}>Name</th>
-              <th style={{ padding: '12px', border: '1px solid #ddd' }}>Email</th>
-              <th style={{ padding: '12px', border: '1px solid #ddd' }}>Department</th>
-              <th style={{ padding: '12px', border: '1px solid #ddd' }}>Role</th>
-              <th style={{ padding: '12px', border: '1px solid #ddd' }}>Status</th>
-              <th style={{ padding: '12px', border: '1px solid #ddd' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {employees.map(emp => (
-              <tr key={emp.id}>
-                <td style={{ padding: '12px', border: '1px solid #ddd' }}>{emp.employee_id}</td>
-                <td style={{ padding: '12px', border: '1px solid #ddd' }}>
-                  <div style={{ fontWeight: 'bold' }}>{emp.name}</div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>{emp.position}</div>
-                </td>
-                <td style={{ padding: '12px', border: '1px solid #ddd' }}>{emp.email}</td>
-                <td style={{ padding: '12px', border: '1px solid #ddd' }}>{emp.department_name}</td>
-                <td style={{ padding: '12px', border: '1px solid #ddd' }}>
-                  <span style={{ 
-                    background: getRoleColor(emp.role_name),
-                    color: 'white',
-                    padding: '4px 8px',
-                    borderRadius: '12px',
-                    fontSize: '12px'
-                  }}>
-                    {emp.role_name}
-                  </span>
-                </td>
-                <td style={{ padding: '12px', border: '1px solid #ddd' }}>
-                  <span style={{ 
-                    background: emp.is_active ? '#d4edda' : '#f8d7da',
-                    color: emp.is_active ? '#155724' : '#721c24',
-                    padding: '4px 8px',
-                    borderRadius: '12px',
-                    fontSize: '12px'
-                  }}>
-                    {emp.is_active ? '🟢 Active' : '🔴 Inactive'}
-                  </span>
-                </td>
-                <td style={{ padding: '12px', border: '1px solid #ddd' }}>
-                  <button
-                    onClick={() => {
-                      setSelectedEmployee(emp);
-                      setShowEditModal(true);
-                    }}
-                    style={{
-                      background: '#3498db',
-                      color: 'white',
-                      border: 'none',
-                      padding: '6px 12px',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      marginRight: '5px'
-                    }}
-                  >
-                    ✏️ Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeleteEmployee(emp.id)}
-                    style={{
-                      background: '#e74c3c',
-                      color: 'white',
-                      border: 'none',
-                      padding: '6px 12px',
-                      borderRadius: '4px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    🗑️ Delete
-                  </button>
-                </td>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Employees ({filteredEmployees.length})
+            </h3>
+            <span className="text-sm text-gray-500">
+              Showing {filteredEmployees.length} of {employees.length} employees
+            </span>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Employee
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Contact
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Department
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Role
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredEmployees.map((emp, index) => (
+                <motion.tr
+                  key={emp.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="hover:bg-gray-50 transition-colors duration-200"
+                >
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                        <span className="text-white font-semibold text-sm">
+                          {emp.name?.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {emp.name}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {emp.employee_id} • {emp.position}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center text-sm text-gray-900">
+                      <Mail className="w-4 h-4 mr-2 text-gray-400" />
+                      {emp.email}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{emp.department_name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColorClasses(emp.role_name)}`}>
+                      {emp.role_name}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      emp.is_active 
+                        ? 'bg-green-100 text-green-800 border border-green-200' 
+                        : 'bg-red-100 text-red-800 border border-red-200'
+                    }`}>
+                      {emp.is_active ? (
+                        <>
+                          <UserCheck className="w-3 h-3 mr-1" />
+                          Active
+                        </>
+                      ) : (
+                        <>
+                          <UserX className="w-3 h-3 mr-1" />
+                          Inactive
+                        </>
+                      )}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex items-center justify-end space-x-2">
+                      <button
+                        onClick={() => {
+                          setSelectedEmployee(emp);
+                          setShowEditModal(true);
+                        }}
+                        className="inline-flex items-center p-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors duration-200"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEmployee(emp.id)}
+                        className="inline-flex items-center p-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors duration-200"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+
+          {filteredEmployees.length === 0 && (
+            <div className="text-center py-12">
+              <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-500">No employees found</p>
+              <p className="text-sm text-gray-400 mt-1">
+                Try adjusting your search or filters
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Create Employee Modal */}
-      {showCreateModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: 'white',
-            padding: '30px',
-            borderRadius: '10px',
-            width: '500px',
-            maxWidth: '90vw'
-          }}>
-            <h3>➕ Add New Employee</h3>
-            <form onSubmit={handleCreateEmployee}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
-                <div>
-                  <label>Employee ID *</label>
-                  <input
-                    type="text"
-                    value={newEmployee.employee_id}
-                    onChange={e => setNewEmployee({...newEmployee, employee_id: e.target.value})}
-                    required
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                  />
-                </div>
-                <div>
-                  <label>Name *</label>
-                  <input
-                    type="text"
-                    value={newEmployee.name}
-                    onChange={e => setNewEmployee({...newEmployee, name: e.target.value})}
-                    required
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '15px' }}>
-                <label>Email *</label>
-                <input
-                  type="email"
-                  value={newEmployee.email}
-                  onChange={e => setNewEmployee({...newEmployee, email: e.target.value})}
+      <AnimatePresence>
+        {showCreateModal && (
+          <Modal
+            title="Add New Employee"
+            onClose={() => setShowCreateModal(false)}
+          >
+            <form onSubmit={handleCreateEmployee} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  label="Employee ID"
+                  type="text"
+                  value={newEmployee.employee_id}
+                  onChange={e => setNewEmployee({...newEmployee, employee_id: e.target.value})}
                   required
-                  style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                />
+                <FormField
+                  label="Full Name"
+                  type="text"
+                  value={newEmployee.name}
+                  onChange={e => setNewEmployee({...newEmployee, name: e.target.value})}
+                  required
                 />
               </div>
 
-              <div style={{ marginBottom: '15px' }}>
-                <label>Password *</label>
-                <input
-                  type="password"
+              <FormField
+                label="Email"
+                type="email"
+                value={newEmployee.email}
+                onChange={e => setNewEmployee({...newEmployee, email: e.target.value})}
+                required
+              />
+
+              <div className="relative">
+                <FormField
+                  label="Password"
+                  type={showPassword ? "text" : "password"}
                   value={newEmployee.password}
                   onChange={e => setNewEmployee({...newEmployee, password: e.target.value})}
                   required
-                  style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-9 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  label="Position"
+                  type="text"
+                  value={newEmployee.position}
+                  onChange={e => setNewEmployee({...newEmployee, position: e.target.value})}
+                  required
+                />
+                <FormField
+                  label="Leave Days"
+                  type="number"
+                  value={newEmployee.total_leave_days}
+                  onChange={e => setNewEmployee({...newEmployee, total_leave_days: parseInt(e.target.value)})}
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
-                <div>
-                  <label>Position *</label>
-                  <input
-                    type="text"
-                    value={newEmployee.position}
-                    onChange={e => setNewEmployee({...newEmployee, position: e.target.value})}
-                    required
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                  />
-                </div>
-                <div>
-                  <label>Leave Days</label>
-                  <input
-                    type="number"
-                    value={newEmployee.total_leave_days}
-                    onChange={e => setNewEmployee({...newEmployee, total_leave_days: parseInt(e.target.value)})}
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                  />
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <SelectField
+                  label="Department"
+                  value={newEmployee.department_id}
+                  onChange={e => setNewEmployee({...newEmployee, department_id: e.target.value})}
+                  options={departments}
+                  required
+                />
+                <SelectField
+                  label="Role"
+                  value={newEmployee.role_id}
+                  onChange={e => setNewEmployee({...newEmployee, role_id: e.target.value})}
+                  options={roles}
+                  required
+                />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
-                <div>
-                  <label>Department *</label>
-                  <select
-                    value={newEmployee.department_id}
-                    onChange={e => setNewEmployee({...newEmployee, department_id: e.target.value})}
-                    required
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map(dept => (
-                      <option key={dept.id} value={dept.id}>{dept.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label>Role *</label>
-                  <select
-                    value={newEmployee.role_id}
-                    onChange={e => setNewEmployee({...newEmployee, role_id: e.target.value})}
-                    required
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                  >
-                    <option value="">Select Role</option>
-                    {roles.map(role => (
-                      <option key={role.id} value={role.id}>{role.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  style={{
-                    background: '#6c757d',
-                    color: 'white',
-                    border: 'none',
-                    padding: '10px 20px',
-                    borderRadius: '5px',
-                    cursor: 'pointer'
-                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  style={{
-                    background: '#27ae60',
-                    color: 'white',
-                    border: 'none',
-                    padding: '10px 20px',
-                    borderRadius: '5px',
-                    cursor: 'pointer'
-                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
                 >
                   Create Employee
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </Modal>
+        )}
+      </AnimatePresence>
 
       {/* Edit Employee Modal */}
-      {showEditModal && selectedEmployee && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: 'white',
-            padding: '30px',
-            borderRadius: '10px',
-            width: '500px',
-            maxWidth: '90vw'
-          }}>
-            <h3>✏️ Edit Employee</h3>
-            <form onSubmit={handleUpdateEmployee}>
-              <div style={{ marginBottom: '15px' }}>
-                <label>Name</label>
-                <input
+      <AnimatePresence>
+        {showEditModal && selectedEmployee && (
+          <Modal
+            title="Edit Employee"
+            onClose={() => setShowEditModal(false)}
+          >
+            <form onSubmit={handleUpdateEmployee} className="space-y-6">
+              <FormField
+                label="Full Name"
+                type="text"
+                value={selectedEmployee.name}
+                onChange={e => setSelectedEmployee({...selectedEmployee, name: e.target.value})}
+              />
+
+              <FormField
+                label="Email"
+                type="email"
+                value={selectedEmployee.email}
+                onChange={e => setSelectedEmployee({...selectedEmployee, email: e.target.value})}
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  label="Position"
                   type="text"
-                  value={selectedEmployee.name}
-                  onChange={e => setSelectedEmployee({...selectedEmployee, name: e.target.value})}
-                  style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                  value={selectedEmployee.position}
+                  onChange={e => setSelectedEmployee({...selectedEmployee, position: e.target.value})}
+                />
+                <FormField
+                  label="Leave Days"
+                  type="number"
+                  value={selectedEmployee.total_leave_days}
+                  onChange={e => setSelectedEmployee({...selectedEmployee, total_leave_days: parseInt(e.target.value)})}
                 />
               </div>
 
-              <div style={{ marginBottom: '15px' }}>
-                <label>Email</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <SelectField
+                  label="Department"
+                  value={selectedEmployee.department_id || ''}
+                  onChange={e => setSelectedEmployee({...selectedEmployee, department_id: parseInt(e.target.value)})}
+                  options={departments}
+                />
+                <SelectField
+                  label="Role"
+                  value={selectedEmployee.role_id || ''}
+                  onChange={e => setSelectedEmployee({...selectedEmployee, role_id: parseInt(e.target.value)})}
+                  options={roles}
+                />
+              </div>
+
+              <div className="flex items-center">
                 <input
-                  type="email"
-                  value={selectedEmployee.email}
-                  onChange={e => setSelectedEmployee({...selectedEmployee, email: e.target.value})}
-                  style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                  type="checkbox"
+                  checked={selectedEmployee.is_active}
+                  onChange={e => setSelectedEmployee({...selectedEmployee, is_active: e.target.checked})}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                 />
+                <label className="ml-2 text-sm text-gray-900">Active Employee</label>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
-                <div>
-                  <label>Position</label>
-                  <input
-                    type="text"
-                    value={selectedEmployee.position}
-                    onChange={e => setSelectedEmployee({...selectedEmployee, position: e.target.value})}
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                  />
-                </div>
-                <div>
-                  <label>Leave Days</label>
-                  <input
-                    type="number"
-                    value={selectedEmployee.total_leave_days}
-                    onChange={e => setSelectedEmployee({...selectedEmployee, total_leave_days: parseInt(e.target.value)})}
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
-                <div>
-                  <label>Department</label>
-                  <select
-                    value={selectedEmployee.department_id || ''}
-                    onChange={e => setSelectedEmployee({...selectedEmployee, department_id: parseInt(e.target.value)})}
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map(dept => (
-                      <option key={dept.id} value={dept.id}>{dept.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label>Role</label>
-                  <select
-                    value={selectedEmployee.role_id || ''}
-                    onChange={e => setSelectedEmployee({...selectedEmployee, role_id: parseInt(e.target.value)})}
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                  >
-                    <option value="">Select Role</option>
-                    {roles.map(role => (
-                      <option key={role.id} value={role.id}>{role.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={selectedEmployee.is_active}
-                    onChange={e => setSelectedEmployee({...selectedEmployee, is_active: e.target.checked})}
-                    style={{ marginRight: '8px' }}
-                  />
-                  Active Employee
-                </label>
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  style={{
-                    background: '#6c757d',
-                    color: 'white',
-                    border: 'none',
-                    padding: '10px 20px',
-                    borderRadius: '5px',
-                    cursor: 'pointer'
-                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  style={{
-                    background: '#3498db',
-                    color: 'white',
-                    border: 'none',
-                    padding: '10px 20px',
-                    borderRadius: '5px',
-                    cursor: 'pointer'
-                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
                 >
                   Update Employee
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-    </div>
+          </Modal>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
-const getRoleColor = (roleName) => {
+// Modal Component
+const Modal = ({ title, children, onClose }) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+    onClick={onClose}
+  >
+    <motion.div
+      initial={{ scale: 0.95, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0.95, opacity: 0 }}
+      className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+        >
+          ×
+        </button>
+      </div>
+      <div className="p-6">
+        {children}
+      </div>
+    </motion.div>
+  </motion.div>
+);
+
+// Form Field Components
+const FormField = ({ label, type, value, onChange, required = false }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-900 mb-2">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <input
+      type={type}
+      value={value}
+      onChange={onChange}
+      required={required}
+      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+    />
+  </div>
+);
+
+const SelectField = ({ label, value, onChange, options, required = false }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-900 mb-2">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <select
+      value={value}
+      onChange={onChange}
+      required={required}
+      className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 appearance-none bg-white"
+    >
+      <option value="">Select {label}</option>
+      {options.map(option => (
+        <option key={option.id} value={option.id}>{option.name}</option>
+      ))}
+    </select>
+  </div>
+);
+
+// Helper function untuk role colors
+const getRoleColorClasses = (roleName) => {
   switch (roleName) {
-    case 'super_admin': return '#e74c3c';
-    case 'admin': return '#3498db';
-    case 'manager': return '#f39c12';
-    case 'employee': return '#2ecc71';
-    default: return '#95a5a6';
+    case 'super_admin':
+      return 'bg-red-100 text-red-800 border border-red-200';
+    case 'admin':
+      return 'bg-blue-100 text-blue-800 border border-blue-200';
+    case 'manager':
+      return 'bg-amber-100 text-amber-800 border border-amber-200';
+    case 'employee':
+      return 'bg-green-100 text-green-800 border border-green-200';
+    default:
+      return 'bg-gray-100 text-gray-800 border border-gray-200';
   }
 };
 
