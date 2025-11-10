@@ -24,22 +24,20 @@ const Dashboard = ({ user, onLogout }) => {
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo & Brand */}
-            <div className="flex items-center space-x-3">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center"
-              >
-                <Building2 className="w-6 h-6 text-white" />
-              </motion.div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">LeaveMaster</h1>
-                <p className="text-xs text-gray-500 hidden sm:block">
-                  Employee Leave Management
-                </p>
-              </div>
-            </div>
+          {/* Logo & Brand */}
+          <div className="flex items-center space-x-3">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="flex items-center justify-center"
+            >
+              <img 
+                src="/logo-leavemaster.png" 
+                alt="LeaveMaster Logo" 
+                className="w-36 h-36 object-contain"
+              />
+            </motion.div>
+          </div>
 
             {/* User Menu */}
             <div className="flex items-center space-x-4">
