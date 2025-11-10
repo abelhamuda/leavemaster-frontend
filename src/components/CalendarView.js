@@ -20,8 +20,8 @@ import {
   CheckCircle,
   XCircle,
   Clock4,
-  Mail,
-  Phone
+  // Mail,
+  // Phone
 } from 'lucide-react';
 import { leaveAPI } from '../services/api';
 

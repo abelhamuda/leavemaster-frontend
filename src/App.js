@@ -61,9 +61,9 @@ function App() {
     return user?.role_name === 'manager' || user?.role_name === 'admin' || user?.role_name === 'super_admin';
   };
 
-  const canViewTeamCalendar = () => {
-    return user?.role_name === 'manager' || user?.role_name === 'admin' || user?.role_name === 'super_admin';
-  };
+  // const canViewTeamCalendar = () => {
+  //   return user?.role_name === 'manager' || user?.role_name === 'admin' || user?.role_name === 'super_admin';
+  // };
 
   const navigationItems = [
     {
@@ -229,8 +229,8 @@ function App() {
                 )}
 
                 {/* Access Denied */}
-                {(activeTab === 'dashboard' && !canAccessAnalytics()) || 
-                 (activeTab === 'users' && !canAccessUserManagement()) && (
+                  {((activeTab === 'dashboard' && !canAccessAnalytics()) || 
+                  (activeTab === 'users' && !canAccessUserManagement())) && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
